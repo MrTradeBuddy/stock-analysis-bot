@@ -34,9 +34,12 @@ fetch_valid_symbols()
 # Symbol alias/fallback list
 SYMBOL_FIX = {
     "tata": "TATAMOTORS",
+    "tatamotors": "TATAMOTORS",
     "icici": "ICICIBANK",
+    "icicibank": "ICICIBANK",
     "reliance": "RELIANCE",
     "hdfc": "HDFCBANK",
+    "hdfcbank": "HDFCBANK",
     "kotak": "KOTAKBANK",
     "jsw": "JSWSTEEL"
 }
@@ -100,7 +103,7 @@ def get_top_movers():
     if buy_zone:
         reply += "📈 Buy Zone:\n" + "\n".join(buy_zone) + "\n\n"
     if sell_zone:
-        reply += "🔧 Sell Zone:\n" + "\n".join(sell_zone)
+        reply += "🗗 Sell Zone:\n" + "\n".join(sell_zone)
     if not buy_zone and not sell_zone:
         reply += "No strong movers right now."
 

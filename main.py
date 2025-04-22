@@ -21,7 +21,17 @@ def analyze_stock(symbol):
         }
         response = requests.get(url, headers=headers)
         data = response.json()
-        ltp = data['data'][f'NSE_EQ|{symbol.upper()}']['last_price']
+
+        print("DEBUG URL:", url)
+        print("DEBUG STATUS:", response.status_code)
+        print("DEBUG RESPONSE:", data)
+
+        key = f'NSE_EQ|{symbol.upper()}'
+        if key in data['data']:
+            ltp = data['data'][key]['last_price']
+        else:
+            print("DEBUG: Symbol not found in response")
+            return None
 
         # Mock logic for now
         signal = {
@@ -58,11 +68,11 @@ def get_top_movers():
         elif stock['rsi'] > 70 and stock['supertrend'] == "Bearish":
             sell_zone.append(f"🔴 {stock['symbol']} (RSI: {stock['rsi']}, ST: {stock['supertrend']})")
 
-    reply = "\ud83d\udd39 Top Movers\n\n"
+    reply = "📉 Top Movers\n\n"
     if buy_zone:
-        reply += "\ud83d\udcc8 Buy Zone:\n" + "\n".join(buy_zone) + "\n\n"
+        reply += "📈 Buy Zone:\n" + "\n".join(buy_zone) + "\n\n"
     if sell_zone:
-        reply += "\ud83d\udd27 Sell Zone:\n" + "\n".join(sell_zone)
+        reply += "🔧 Sell Zone:\n" + "\n".join(sell_zone)
     if not buy_zone and not sell_zone:
         reply += "No strong movers right now."
 
@@ -80,7 +90,7 @@ async def webhook(req: Request):
         signal = analyze_stock(query)
 
         if signal:
-            reply = f"\ud83d\udcc8 {query.upper()} Signal:\n\n"
+            reply = f"📈 {query.upper()} Signal:\n\n"
             reply += f"Type: {signal['type']}\n"
             reply += f"CMP: {signal['cmp']}\n"
             reply += f"Entry: {signal['entry']}\n"
@@ -93,13 +103,13 @@ async def webhook(req: Request):
             reply += f"BB: {signal['bb']}\n"
             reply += f"Volume: {signal['volume']}\n"
         else:
-            reply = "\u274c Stock data not found or error in signal analysis."
+            reply = "❌ Stock data not found or error in signal analysis."
 
     elif text.startswith("/topmovers"):
         reply = get_top_movers()
 
     else:
-        reply = "\ud83d\udd0e Use /stock <symbol> or /topmovers"
+        reply = "🔎 Use /stock <symbol> or /topmovers"
 
     requests.post(API_URL, json={
         "chat_id": chat_id,

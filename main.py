@@ -19,7 +19,10 @@ def fetch_valid_symbols():
     try:
         url = "https://assets.upstox.com/market-quote/symbols.csv"
         df = pd.read_csv(url)
-        VALID_SYMBOLS.update(df['symbol'].str.upper().tolist())
+        df = df[df['exchange'] == 'NSE_EQ']
+        symbols = df['symbol'].str.upper().tolist()
+        stripped = [s.split('|')[-1] for s in symbols]
+        VALID_SYMBOLS.update(stripped)
         print(f"✅ Loaded {len(VALID_SYMBOLS)} symbols from Upstox")
     except Exception as e:
         print("Error loading symbols:", e)

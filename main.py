@@ -1,12 +1,16 @@
-from fastapi import FastAPI, Request
-import uvicorn
-import requests
+try:
+    from fastapi import FastAPI, Request
+    import uvicorn
+    import requests
+except ModuleNotFoundError as e:
+    print("Required module not found:", e)
+    raise SystemExit(1)
 
 app = FastAPI()
 
 BOT_TOKEN = '7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8'
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-UPSTOX_ACCESS_TOKEN = "YOUR_UPSTOX_ACCESS_TOKEN_HERE"
+UPSTOX_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI1WEI3RkQiLCJqdGkiOiI2ODA3NjZiZjQyMzI3ZjQ4MzBiZjc0MzQiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQ1MzE1NTE5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDUzNTkyMDB9.6tiVcaXqfQyyjGORwZEphepH6GSOaNKPkTikdU3x1Fk"
 
 def fetch_upstox_data(symbol):
     try:
@@ -22,7 +26,8 @@ def fetch_upstox_data(symbol):
             return None, None
         dummy_rsi = 50 + (ltp % 10)
         return ltp, round(dummy_rsi, 2)
-    except Exception:
+    except Exception as e:
+        print("Error fetching Upstox data:", e)
         return None, None
 
 @app.post("/")
@@ -53,4 +58,7 @@ async def webhook(req: Request):
     return {"ok": True}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    try:
+        uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    except Exception as e:
+        print("Error running server:", e)

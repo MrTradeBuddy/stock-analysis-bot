@@ -1,110 +1,39 @@
 from fastapi import FastAPI, Request
 import uvicorn
 import requests
-import pandas as pd
 
 app = FastAPI()
 
-# Telegram Bot Setup
 BOT_TOKEN = '7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8'
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-# ✅ NSE Fallback Symbol Set
-VALID_SYMBOLS = {
-    "TATAMOTORS", "ICICIBANK", "RELIANCE", "HDFCBANK", "KOTAKBANK",
-    "JSWSTEEL", "ITC", "INFY", "AXISBANK", "SBIN",
-    "LT", "TCS", "WIPRO", "SUNPHARMA", "ONGC"
-}
-
-SYMBOL_MAP = {symbol.lower(): symbol for symbol in VALID_SYMBOLS}
-
-# Symbol alias/fallback list
-SYMBOL_FIX = {
-    "tata": "TATAMOTORS",
-    "tatamotors": "TATAMOTORS",
-    "icici": "ICICIBANK",
-    "icicibank": "ICICIBANK",
-    "reliance": "RELIANCE",
-    "hdfc": "HDFCBANK",
-    "hdfcbank": "HDFCBANK",
-    "kotak": "KOTAKBANK",
-    "jsw": "JSWSTEEL"
-}
-
-
-# Strong Signal Check (Yahoo fallback with fix)
-def analyze_stock(symbol):
+# EUR/USD Price and RSI Fetcher
+def fetch_eurusd_data():
     try:
-        yahoo_symbol = symbol.upper() + ".NS"
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}?interval=1d"
-        response = requests.get(url)
-        data = response.json()
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X?interval=15m&range=1d"
+        res = requests.get(url)
+        data = res.json()
 
-        print("🔍 DEBUG Yahoo Finance URL:", url)
+        close_prices = data['chart']['result'][0]['indicators']['quote'][0]['close']
+        timestamps = data['chart']['result'][0]['timestamp']
 
-        ltp = None
-        try:
-            result = data['chart']['result'][0]
-            meta = result['meta']
-            quote = result['indicators']['quote'][0]
+        # Latest valid close
+        latest_price = next((price for price in reversed(close_prices) if price is not None), None)
 
-            ltp = meta.get('regularMarketPrice')
-            if ltp is None:
-                close_prices = quote.get("close", [])
-                ltp = next((price for price in reversed(close_prices) if price is not None), None)
+        # Simple RSI calculation (last 14 closes)
+        prices = [p for p in close_prices if p is not None][-15:]
+        gains = [max(prices[i+1] - prices[i], 0) for i in range(len(prices)-1)]
+        losses = [max(prices[i] - prices[i+1], 0) for i in range(len(prices)-1)]
+        avg_gain = sum(gains) / 14
+        avg_loss = sum(losses) / 14
+        rs = avg_gain / avg_loss if avg_loss != 0 else 0
+        rsi = 100 - (100 / (1 + rs))
 
-        except Exception as sub_e:
-            print("⚠️ LTP fallback failed:", sub_e)
-
-        if not ltp:
-            print(f"⚠️ Final fallback LTP failed for {symbol}")
-            return None
-
-        signal = {
-            "type": "Buy" if ltp % 2 == 0 else "Sell",
-            "entry": round(ltp - 10, 2),
-            "cmp": ltp,
-            "targets": f"{round(ltp + 10, 2)} / {round(ltp + 20, 2)} / {round(ltp + 30, 2)}",
-            "sl": round(ltp - 20, 2),
-            "rsi": 28.3,
-            "macd": "Bullish",
-            "volume": "High",
-            "supertrend": "Bullish",
-            "bb": "Near Lower Band"
-        }
-        return signal
+        return latest_price, round(rsi, 2)
 
     except Exception as e:
-        print("❌ பிழை ஏற்பட்டது (Yahoo fallback):", e)
-        return None
-
-
-# Top Movers Command Logic (Dummy Scan)
-def get_top_movers():
-    movers = [
-        {"symbol": "TATAMOTORS", "rsi": 28, "supertrend": "Bullish"},
-        {"symbol": "ICICIBANK", "rsi": 76, "supertrend": "Bearish"},
-        {"symbol": "RELIANCE", "rsi": 31, "supertrend": "Bullish"}
-    ]
-
-    buy_zone = []
-    sell_zone = []
-
-    for stock in movers:
-        if stock['rsi'] < 30 and stock['supertrend'] == "Bullish":
-            buy_zone.append(f"🟢 {stock['symbol']} (RSI: {stock['rsi']}, ST: {stock['supertrend']})")
-        elif stock['rsi'] > 70 and stock['supertrend'] == "Bearish":
-            sell_zone.append(f"🔴 {stock['symbol']} (RSI: {stock['rsi']}, ST: {stock['supertrend']})")
-
-    reply = "📉 Top Movers\n\n"
-    if buy_zone:
-        reply += "📈 Buy Zone:\n" + "\n".join(buy_zone) + "\n\n"
-    if sell_zone:
-        reply += "🗗 Sell Zone:\n" + "\n".join(sell_zone)
-    if not buy_zone and not sell_zone:
-        reply += "No strong movers right now."
-
-    return reply
+        print("Error fetching EURUSD:", e)
+        return None, None
 
 
 @app.post("/")
@@ -114,57 +43,19 @@ async def webhook(req: Request):
     text = message.get("text", "")
     chat_id = message.get("chat", {}).get("id")
 
-    if text.startswith("/stock"):
-        parts = text.split(" ", 1)
-        query = parts[1].strip().lower() if len(parts) > 1 and parts[1].strip() != "" else None
-
-        if not query:
-            reply = "❌ Symbol missing.\n\n🔍 Please type like: /stock tata or /stock icici"
+    if text.strip().lower() == "/eurusd":
+        price, rsi = fetch_eurusd_data()
+        if price:
+            reply = f"💶 EUR/USD Update:\n\nPrice: {price}\nRSI: {rsi}"
         else:
-            fixed_symbol = None
-            if query in SYMBOL_FIX:
-                fixed_symbol = SYMBOL_FIX[query]
-            elif query in SYMBOL_MAP:
-                fixed_symbol = SYMBOL_MAP[query]
-            elif query.upper() in VALID_SYMBOLS:
-                fixed_symbol = query.upper()
-            else:
-                matches = [v for k, v in SYMBOL_MAP.items() if query in k]
-                if matches:
-                    fixed_symbol = matches[0]
-
-            if not fixed_symbol:
-                print("DEBUG ERROR:", query, fixed_symbol)
-                reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"
-            else:
-                signal = analyze_stock(fixed_symbol)
-                if signal:
-                    reply = f"📈 {fixed_symbol} Signal:\n\n"
-                    reply += f"Type: {signal['type']}\n"
-                    reply += f"CMP: {signal['cmp']}\n"
-                    reply += f"Entry: {signal['entry']}\n"
-                    reply += f"Targets: {signal['targets']}\n"
-                    reply += f"Stop Loss: {signal['sl']}\n"
-                    reply += f"\nIndicators:\n"
-                    reply += f"RSI: {signal['rsi']}\n"
-                    reply += f"MACD: {signal['macd']}\n"
-                    reply += f"Supertrend: {signal['supertrend']}\n"
-                    reply += f"BB: {signal['bb']}\n"
-                    reply += f"Volume: {signal['volume']}\n"
-                else:
-                    reply = "❌ Stock data not found or error in signal analysis."
-
-    elif text.startswith("/topmovers"):
-        reply = get_top_movers()
-
+            reply = "❌ Unable to fetch EUR/USD data."
     else:
-        reply = "🔎 Use /stock <symbol> or /topmovers"
+        reply = "ℹ️ Use /eurusd to get live update."
 
     requests.post(API_URL, json={
         "chat_id": chat_id,
         "text": reply
     })
-
     return {"ok": True}
 
 

@@ -9,9 +9,6 @@ app = FastAPI()
 BOT_TOKEN = '7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8'
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
-# Upstox API V2 Token
-UPSTOX_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI1WEI3RkQiLCJqdGkiOiI2ODA3NjZiZjQyMzI3ZjQ4MzBiZjc0MzQiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQ1MzE1NTE5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDUzNTkyMDB9.6tiVcaXqfQyyjGORwZEphepH6GSOaNKPkTikdU3x1Fk"
-
 # ✅ NSE Fallback Symbol Set
 VALID_SYMBOLS = {
     "TATAMOTORS", "ICICIBANK", "RELIANCE", "HDFCBANK", "KOTAKBANK",
@@ -129,18 +126,6 @@ async def webhook(req: Request):
                 matches = [v for k, v in SYMBOL_MAP.items() if query in k]
                 if matches:
                     fixed_symbol = matches[0]
-
-            if not fixed_symbol:
-                # fallback check with live Upstox API
-                url = f"https://api.upstox.com/v2/market-quote/ltp?symbol=NSE_EQ%7C{query.upper()}"
-                headers = {"Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"}
-                res = requests.get(url, headers=headers)
-                try:
-                    res_data = res.json()
-                    if f'NSE_EQ|{query.upper()}' in res_data['data']:
-                        fixed_symbol = query.upper()
-                except:
-                    pass
 
             if not fixed_symbol:
                 print("DEBUG ERROR:", query, fixed_symbol)

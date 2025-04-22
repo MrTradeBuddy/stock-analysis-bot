@@ -3,7 +3,6 @@ import requests
 
 app = FastAPI()
 
-# Telegram Details
 BOT_TOKEN = "7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
@@ -14,7 +13,9 @@ async def telegram_webhook(req: Request):
     text = message.get("text", "")
     chat_id = message.get("chat", {}).get("id")
 
-    if text == "/start":
+    if text.strip() == "/":
+        send_message(chat_id, "👋 Hello Mr. Buddy! Type /stock SYMBOL to get stock updates. For example: /stock tata")
+    elif text == "/start":
         send_message(chat_id, "👋 Hello Mr. Buddy! Welcome to the stock bot world 💼📈")
     elif text.startswith("/stock"):
         send_message(chat_id, "📢 Stock command received! (More logic can go here...)")

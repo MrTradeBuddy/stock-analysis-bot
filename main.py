@@ -14,16 +14,18 @@ UPSTOX_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyN
 
 # ✅ Live NSE Symbol Cache
 VALID_SYMBOLS = set()
+SYMBOL_MAP = {}
 
 def fetch_valid_symbols():
     try:
         url = "https://assets.upstox.com/market-quote/symbols.csv"
         df = pd.read_csv(url)
         df = df[df['exchange'] == 'NSE_EQ']
-        symbols = df['symbol'].str.upper().tolist()
-        stripped = [s.split('|')[-1] for s in symbols]
-        VALID_SYMBOLS.update(stripped)
-        print(f"✅ Loaded {len(VALID_SYMBOLS)} symbols from Upstox")
+        for raw in df['symbol']:
+            exchange, symbol = raw.split('|')
+            VALID_SYMBOLS.add(symbol)
+            SYMBOL_MAP[symbol.lower()] = symbol
+        print(f"✅ Loaded {len(VALID_SYMBOLS)} NSE symbols.")
     except Exception as e:
         print("Error loading symbols:", e)
 
@@ -60,7 +62,6 @@ def analyze_stock(symbol):
             print("DEBUG: Symbol not found in response")
             return None
 
-        # Mock logic for now
         signal = {
             "type": "Buy" if ltp % 2 == 0 else "Sell",
             "entry": round(ltp - 10, 2),
@@ -114,7 +115,7 @@ async def webhook(req: Request):
 
     if text.startswith("/stock"):
         query = text.split(" ", 1)[-1].strip().lower()
-        fixed_symbol = SYMBOL_FIX.get(query, query).upper()
+        fixed_symbol = SYMBOL_FIX.get(query, SYMBOL_MAP.get(query, query.upper()))
 
         if fixed_symbol not in VALID_SYMBOLS:
             reply = f"❌ Symbol '{fixed_symbol}' not found in NSE database."

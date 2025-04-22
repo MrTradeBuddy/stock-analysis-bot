@@ -16,6 +16,7 @@ UPSTOX_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyN
 VALID_SYMBOLS = set()
 SYMBOL_MAP = {}
 
+
 def fetch_valid_symbols():
     try:
         url = "https://assets.upstox.com/market-quote/symbols.csv"
@@ -28,6 +29,7 @@ def fetch_valid_symbols():
         print(f"✅ Loaded {len(VALID_SYMBOLS)} NSE symbols.")
     except Exception as e:
         print("Error loading symbols:", e)
+
 
 fetch_valid_symbols()
 
@@ -44,6 +46,7 @@ SYMBOL_FIX = {
     "jsw": "JSWSTEEL"
 }
 
+
 # Strong Signal Check (Upstox API V2)
 def analyze_stock(symbol):
     try:
@@ -59,7 +62,7 @@ def analyze_stock(symbol):
         print("DEBUG RESPONSE:", data)
 
         key = f'NSE_EQ|{symbol.upper()}'
-        if key in data['data']:
+        if key in data['data'] and 'last_price' in data['data'][key]:
             ltp = data['data'][key]['last_price']
         else:
             print("DEBUG: Symbol not found in response")
@@ -81,6 +84,7 @@ def analyze_stock(symbol):
     except Exception as e:
         print("Error:", e)
         return None
+
 
 # Top Movers Command Logic (Dummy Scan)
 def get_top_movers():
@@ -109,6 +113,7 @@ def get_top_movers():
 
     return reply
 
+
 @app.post("/")
 async def webhook(req: Request):
     data = await req.json()
@@ -136,6 +141,7 @@ async def webhook(req: Request):
                     fixed_symbol = matches[0]
 
             if not fixed_symbol or fixed_symbol not in VALID_SYMBOLS:
+                print("DEBUG ERROR:", query, fixed_symbol, query.upper() in VALID_SYMBOLS)
                 reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"
             else:
                 signal = analyze_stock(fixed_symbol)
@@ -167,6 +173,7 @@ async def webhook(req: Request):
     })
 
     return {"ok": True}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

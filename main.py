@@ -26,7 +26,7 @@ async def telegram_webhook(req: Request):
         parts = text.strip().split()
         if len(parts) == 2:
             symbol = parts[1].upper()
-            stock_info = get_nse_price(symbol.lower())
+            stock_info = get_nse_price(symbol)
             if stock_info:
                 send_message(chat_id, f"📊 {symbol}: ₹{stock_info['price']} ({stock_info['change']})")
             else:
@@ -50,12 +50,14 @@ def get_nse_price(symbol):
         url = f"https://www.nseindia.com/api/quote-equity?symbol={symbol}"
         session = requests.Session()
         session.headers.update(HEADERS)
-        session.get("https://www.nseindia.com")
-        res = session.get(url)
+        session.get("https://www.nseindia.com", timeout=5)
+        res = session.get(url, timeout=10)
         if res.status_code == 200:
             data = res.json()
             price = data['priceInfo']['lastPrice']
-            change = f"{'▲' if data['priceInfo']['change'] > 0 else '▼'} {abs(data['priceInfo']['change'])}"
-            return {"price": price, "change": change}
-    except:
+            change = data['priceInfo'].get('pChange', 0)
+            arrow = '▲' if change > 0 else '▼' if change < 0 else ''
+            return {"price": price, "change": f"{arrow} {change:.2f}%"}
+    except Exception as e:
+        print("Error fetching stock data:", e)
         return None

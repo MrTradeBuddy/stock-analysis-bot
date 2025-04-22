@@ -12,6 +12,16 @@ API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 # Upstox API V2 Token
 UPSTOX_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI1WEI3RkQiLCJqdGkiOiI2ODA3NjZiZjQyMzI3ZjQ4MzBiZjc0MzQiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQ1MzE1NTE5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDUzNTkyMDB9.6tiVcaXqfQyyjGORwZEphepH6GSOaNKPkTikdU3x1Fk"
 
+# Symbol alias/fallback list
+SYMBOL_FIX = {
+    "tata": "TATAMOTORS",
+    "icici": "ICICIBANK",
+    "reliance": "RELIANCE",
+    "hdfc": "HDFCBANK",
+    "kotak": "KOTAKBANK",
+    "jsw": "JSWSTEEL"
+}
+
 # Strong Signal Check (Upstox API V2)
 def analyze_stock(symbol):
     try:
@@ -87,10 +97,11 @@ async def webhook(req: Request):
 
     if text.startswith("/stock"):
         query = text.split(" ", 1)[-1].strip().lower()
-        signal = analyze_stock(query)
+        fixed_symbol = SYMBOL_FIX.get(query, query)
+        signal = analyze_stock(fixed_symbol)
 
         if signal:
-            reply = f"📈 {query.upper()} Signal:\n\n"
+            reply = f"📈 {fixed_symbol.upper()} Signal:\n\n"
             reply += f"Type: {signal['type']}\n"
             reply += f"CMP: {signal['cmp']}\n"
             reply += f"Entry: {signal['entry']}\n"

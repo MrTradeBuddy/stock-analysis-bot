@@ -5,7 +5,7 @@ app = FastAPI()
 
 @app.get("/")
 def read_root():
-    return {"message": "🚀 Hello! Your FastAPI bot is running!"}
+    return {"message": "👋 Hello Mr. Buddy! Welcome to your stock bot."}
 
 @app.post("/")
 async def receive_webhook(req: Request):

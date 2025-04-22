@@ -114,7 +114,8 @@ async def webhook(req: Request):
     chat_id = message.get("chat", {}).get("id")
 
     if text.startswith("/stock"):
-        query = text.split(" ", 1)[-1].strip().lower()
+        parts = text.split(" ", 1)
+        query = parts[1].strip().lower() if len(parts) > 1 else ""
 
         if query in SYMBOL_FIX:
             fixed_symbol = SYMBOL_FIX[query]
@@ -126,7 +127,7 @@ async def webhook(req: Request):
             fixed_symbol = None
 
         if not fixed_symbol or fixed_symbol not in VALID_SYMBOLS:
-            reply = f"❌ Symbol '{text.split(' ',1)[-1]}' not found in NSE database."
+            reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"
         else:
             signal = analyze_stock(fixed_symbol)
             if signal:

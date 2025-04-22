@@ -1,17 +1,31 @@
 from fastapi import FastAPI, Request
-import uvicorn
+import requests
 
 app = FastAPI()
 
-@app.get("/")
-def read_root():
-    return {"message": "👋 Hello Mr. Buddy! Welcome to your stock bot."}
+# Telegram Details
+BOT_TOKEN = "7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8"
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
 @app.post("/")
-async def receive_webhook(req: Request):
+async def telegram_webhook(req: Request):
     data = await req.json()
-    print("Received webhook:", data)
-    return {"status": "received"}
+    message = data.get("message", {})
+    text = message.get("text", "")
+    chat_id = message.get("chat", {}).get("id")
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    if text == "/start":
+        send_message(chat_id, "👋 Hello Mr. Buddy! Welcome to the stock bot world 💼📈")
+    elif text.startswith("/stock"):
+        send_message(chat_id, "📢 Stock command received! (More logic can go here...)")
+    else:
+        send_message(chat_id, "❌ Unknown command. Try /start or /stock tata")
+
+    return {"ok": True}
+
+def send_message(chat_id, text):
+    payload = {
+        "chat_id": chat_id,
+        "text": text
+    }
+    requests.post(TELEGRAM_API_URL, json=payload)

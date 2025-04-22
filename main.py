@@ -128,9 +128,23 @@ async def webhook(req: Request):
                 if matches:
                     fixed_symbol = matches[0]
 
-            if not fixed_symbol or fixed_symbol not in VALID_SYMBOLS:
-                print("DEBUG ERROR:", query, fixed_symbol, query.upper() in VALID_SYMBOLS)
-                reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"
+            if not fixed_symbol:
+                # fallback check with live Upstox API
+                url = f"https://api.upstox.com/v2/market-quote/ltp?symbol=NSE_EQ%7C{query.upper()}"
+                headers = {"Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"}
+                res = requests.get(url, headers=headers)
+                try:
+                    res_data = res.json()
+                    if f'NSE_EQ|{query.upper()}' in res_data['data']:
+                        fixed_symbol = query.upper()
+                except:
+                    pass
+
+            if not fixed_symbol:
+                print("DEBUG ERROR:", query, fixed_symbol)
+                reply = f"❌ Symbol '{query.upper()}' not found in NSE database.
+
+🔍 Please type like: /stock tata or /stock icici"
             else:
                 signal = analyze_stock(fixed_symbol)
                 if signal:

@@ -115,36 +115,39 @@ async def webhook(req: Request):
 
     if text.startswith("/stock"):
         parts = text.split(" ", 1)
-        query = parts[1].strip().lower() if len(parts) > 1 else ""
+        query = parts[1].strip().lower() if len(parts) > 1 and parts[1].strip() != "" else None
 
-        if query in SYMBOL_FIX:
-            fixed_symbol = SYMBOL_FIX[query]
-        elif query in SYMBOL_MAP:
-            fixed_symbol = SYMBOL_MAP[query]
-        elif query.upper() in VALID_SYMBOLS:
-            fixed_symbol = query.upper()
+        if not query:
+            reply = "❌ Symbol missing.\n\n🔍 Please type like: /stock tata or /stock icici"
         else:
-            fixed_symbol = None
-
-        if not fixed_symbol or fixed_symbol not in VALID_SYMBOLS:
-            reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"
-        else:
-            signal = analyze_stock(fixed_symbol)
-            if signal:
-                reply = f"📈 {fixed_symbol} Signal:\n\n"
-                reply += f"Type: {signal['type']}\n"
-                reply += f"CMP: {signal['cmp']}\n"
-                reply += f"Entry: {signal['entry']}\n"
-                reply += f"Targets: {signal['targets']}\n"
-                reply += f"Stop Loss: {signal['sl']}\n"
-                reply += f"\nIndicators:\n"
-                reply += f"RSI: {signal['rsi']}\n"
-                reply += f"MACD: {signal['macd']}\n"
-                reply += f"Supertrend: {signal['supertrend']}\n"
-                reply += f"BB: {signal['bb']}\n"
-                reply += f"Volume: {signal['volume']}\n"
+            if query in SYMBOL_FIX:
+                fixed_symbol = SYMBOL_FIX[query]
+            elif query in SYMBOL_MAP:
+                fixed_symbol = SYMBOL_MAP[query]
+            elif query.upper() in VALID_SYMBOLS:
+                fixed_symbol = query.upper()
             else:
-                reply = "❌ Stock data not found or error in signal analysis."
+                fixed_symbol = None
+
+            if not fixed_symbol or fixed_symbol not in VALID_SYMBOLS:
+                reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"
+            else:
+                signal = analyze_stock(fixed_symbol)
+                if signal:
+                    reply = f"📈 {fixed_symbol} Signal:\n\n"
+                    reply += f"Type: {signal['type']}\n"
+                    reply += f"CMP: {signal['cmp']}\n"
+                    reply += f"Entry: {signal['entry']}\n"
+                    reply += f"Targets: {signal['targets']}\n"
+                    reply += f"Stop Loss: {signal['sl']}\n"
+                    reply += f"\nIndicators:\n"
+                    reply += f"RSI: {signal['rsi']}\n"
+                    reply += f"MACD: {signal['macd']}\n"
+                    reply += f"Supertrend: {signal['supertrend']}\n"
+                    reply += f"BB: {signal['bb']}\n"
+                    reply += f"Volume: {signal['volume']}\n"
+                else:
+                    reply = "❌ Stock data not found or error in signal analysis."
 
     elif text.startswith("/topmovers"):
         reply = get_top_movers()

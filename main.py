@@ -50,8 +50,13 @@ def analyze_stock(symbol):
         print("DEBUG RESPONSE:", data)
 
         key = f'NSE_EQ|{symbol.upper()}'
-        if key in data['data'] and 'last_price' in data['data'][key]:
-            ltp = data['data'][key]['last_price']
+        if key in data['data']:
+            symbol_data = data['data'][key]
+            ltp = symbol_data.get('last_price', None)
+
+            if ltp is None:
+                print("⚠️ Last price not found for symbol:", symbol)
+                return None
         else:
             print("DEBUG: Symbol not found in response")
             return None

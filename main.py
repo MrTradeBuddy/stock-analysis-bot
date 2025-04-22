@@ -38,28 +38,20 @@ SYMBOL_FIX = {
 # Strong Signal Check (Upstox API V2)
 def analyze_stock(symbol):
     try:
-        url = f"https://api.upstox.com/v2/market-quote/ltp?symbol=NSE_EQ%7C{symbol.upper()}"
-        headers = {
-            "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"
-        }
-        response = requests.get(url, headers=headers)
+        # ✅ Instead of Upstox, let's use Yahoo Finance for live CMP
+        yahoo_symbol = symbol.upper() + ".NS"
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}?interval=1d"
+        response = requests.get(url)
         data = response.json()
 
-        print("🧪 DEBUG URL:", url)
-        print("📦 DEBUG STATUS:", response.status_code)
-        print("🧾 DEBUG RESPONSE:", data)
+        print("🔍 DEBUG Yahoo Finance URL:", url)
 
-        key = f'NSE_EQ|{symbol.upper()}'
-        if key in data.get('data', {}):
-            symbol_data = data['data'][key]
-            ltp = symbol_data.get('last_price')
+        # Extract current market price from Yahoo data
+        ltp = data['chart']['result'][0]['meta'].get('regularMarketPrice')
 
-            if not ltp:
-                print(f"⚠️ No LTP found for {symbol} — using fallback CMP 999.00")
-                ltp = 999.0  # fallback value for testing purpose
-        else:
-            print(f"❌ Key {key} not in response data.")
-            return None
+        if not ltp:
+            print(f"⚠️ LTP not available for {symbol}, fallback to 999")
+            ltp = 999.0
 
         signal = {
             "type": "Buy" if ltp % 2 == 0 else "Sell",
@@ -74,6 +66,10 @@ def analyze_stock(symbol):
             "bb": "Near Lower Band"
         }
         return signal
+
+    except Exception as e:
+        print("❌ பிழை ஏற்பட்டது (Yahoo fallback):", e)
+        return None
 
     except Exception as e:
         print("❌ பிழை ஏற்பட்டது:", e)

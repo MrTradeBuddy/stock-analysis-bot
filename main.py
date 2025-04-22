@@ -35,10 +35,9 @@ SYMBOL_FIX = {
 }
 
 
-# Strong Signal Check (Upstox API V2)
+# Strong Signal Check (Yahoo fallback with fix)
 def analyze_stock(symbol):
     try:
-        # ✅ Instead of Upstox, let's use Yahoo Finance for live CMP
         yahoo_symbol = symbol.upper() + ".NS"
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yahoo_symbol}?interval=1d"
         response = requests.get(url)
@@ -46,12 +45,17 @@ def analyze_stock(symbol):
 
         print("🔍 DEBUG Yahoo Finance URL:", url)
 
-        # Extract current market price from Yahoo data
-        ltp = data['chart']['result'][0]['meta'].get('regularMarketPrice')
+        ltp = None
+        try:
+            ltp = data['chart']['result'][0]['meta'].get('regularMarketPrice')
+            if ltp is None:
+                ltp = data['chart']['result'][0]['indicators']['quote'][0]['close'][-1]
+        except Exception as sub_e:
+            print("⚠️ LTP not found in Yahoo API, fallback failed:", sub_e)
 
         if not ltp:
-            print(f"⚠️ LTP not available for {symbol}, fallback to 999")
-            ltp = 999.0
+            print(f"⚠️ Final fallback LTP failed for {symbol}")
+            return None
 
         signal = {
             "type": "Buy" if ltp % 2 == 0 else "Sell",
@@ -70,11 +74,6 @@ def analyze_stock(symbol):
     except Exception as e:
         print("❌ பிழை ஏற்பட்டது (Yahoo fallback):", e)
         return None
-
-    except Exception as e:
-        print("❌ பிழை ஏற்பட்டது:", e)
-        return None
-    
 
 
 # Top Movers Command Logic (Dummy Scan)
@@ -145,9 +144,7 @@ async def webhook(req: Request):
 
             if not fixed_symbol:
                 print("DEBUG ERROR:", query, fixed_symbol)
-                reply = f"❌ Symbol '{query.upper()}' not found in NSE database.
-
-🔍 Please type like: /stock tata or /stock icici"
+                reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"
             else:
                 signal = analyze_stock(fixed_symbol)
                 if signal:

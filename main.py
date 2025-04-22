@@ -1,15 +1,11 @@
 from fastapi import FastAPI, Request
 import requests
+import yfinance as yf
 
 app = FastAPI()
 
 BOT_TOKEN = "7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8"
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36",
-    "Accept": "application/json"
-}
 
 @app.post("/")
 async def telegram_webhook(req: Request):
@@ -26,11 +22,11 @@ async def telegram_webhook(req: Request):
         parts = text.strip().split()
         if len(parts) == 2:
             symbol = parts[1].upper()
-            stock_info = get_nse_price(symbol)
+            stock_info = get_stock_price(symbol)
             if stock_info:
                 send_message(chat_id, f"📊 {symbol}: ₹{stock_info['price']} ({stock_info['change']})")
             else:
-                send_message(chat_id, f"❌ Unable to fetch live data for {symbol}. Please try a valid NSE symbol like TATAMOTORS, ICICIBANK")
+                send_message(chat_id, f"❌ Unable to fetch live data for {symbol}. Please try again with a valid symbol like TATAMOTORS, ICICIBANK")
         else:
             send_message(chat_id, "📢 Please use the correct format: /stock SYMBOL")
     else:
@@ -45,19 +41,16 @@ def send_message(chat_id, text):
     }
     requests.post(TELEGRAM_API_URL, json=payload)
 
-def get_nse_price(symbol):
+def get_stock_price(symbol):
     try:
-        url = f"https://www.nseindia.com/api/quote-equity?symbol={symbol}"
-        session = requests.Session()
-        session.headers.update(HEADERS)
-        session.get("https://www.nseindia.com", timeout=5)
-        res = session.get(url, timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            price = data['priceInfo']['lastPrice']
-            change = data['priceInfo'].get('pChange', 0)
+        ticker = yf.Ticker(symbol + ".NS")  # NSE symbols in Yahoo end with .NS
+        data = ticker.history(period="1d")
+        if not data.empty:
+            price = data['Close'].iloc[-1]
+            prev_close = data['Close'].iloc[-2] if len(data) > 1 else price
+            change = ((price - prev_close) / prev_close) * 100 if prev_close else 0
             arrow = '▲' if change > 0 else '▼' if change < 0 else ''
-            return {"price": price, "change": f"{arrow} {change:.2f}%"}
+            return {"price": f"{price:.2f}", "change": f"{arrow} {change:.2f}%"}
     except Exception as e:
         print("Error fetching stock data:", e)
-        return None
+    return None

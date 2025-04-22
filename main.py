@@ -12,26 +12,14 @@ API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 # Upstox API V2 Token
 UPSTOX_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI1WEI3RkQiLCJqdGkiOiI2ODA3NjZiZjQyMzI3ZjQ4MzBiZjc0MzQiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQ1MzE1NTE5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDUzNTkyMDB9.6tiVcaXqfQyyjGORwZEphepH6GSOaNKPkTikdU3x1Fk"
 
-# ✅ Live NSE Symbol Cache
-VALID_SYMBOLS = set()
-SYMBOL_MAP = {}
+# ✅ NSE Fallback Symbol Set
+VALID_SYMBOLS = {
+    "TATAMOTORS", "ICICIBANK", "RELIANCE", "HDFCBANK", "KOTAKBANK",
+    "JSWSTEEL", "ITC", "INFY", "AXISBANK", "SBIN",
+    "LT", "TCS", "WIPRO", "SUNPHARMA", "ONGC"
+}
 
-
-def fetch_valid_symbols():
-    try:
-        url = "https://assets.upstox.com/market-quote/symbols.csv"
-        df = pd.read_csv(url)
-        df = df[df['exchange'] == 'NSE_EQ']
-        for raw in df['symbol']:
-            exchange, symbol = raw.split('|')
-            VALID_SYMBOLS.add(symbol)
-            SYMBOL_MAP[symbol.lower()] = symbol
-        print(f"✅ Loaded {len(VALID_SYMBOLS)} NSE symbols.")
-    except Exception as e:
-        print("Error loading symbols:", e)
-
-
-fetch_valid_symbols()
+SYMBOL_MAP = {symbol.lower(): symbol for symbol in VALID_SYMBOLS}
 
 # Symbol alias/fallback list
 SYMBOL_FIX = {

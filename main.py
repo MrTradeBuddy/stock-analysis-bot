@@ -12,6 +12,20 @@ API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 # Upstox API V2 Token
 UPSTOX_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI1WEI3RkQiLCJqdGkiOiI2ODA3NjZiZjQyMzI3ZjQ4MzBiZjc0MzQiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQ1MzE1NTE5LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDUzNTkyMDB9.6tiVcaXqfQyyjGORwZEphepH6GSOaNKPkTikdU3x1Fk"
 
+# ✅ Live NSE Symbol Cache
+VALID_SYMBOLS = set()
+
+def fetch_valid_symbols():
+    try:
+        url = "https://assets.upstox.com/market-quote/symbols.csv"
+        df = pd.read_csv(url)
+        VALID_SYMBOLS.update(df['symbol'].str.upper().tolist())
+        print(f"✅ Loaded {len(VALID_SYMBOLS)} symbols from Upstox")
+    except Exception as e:
+        print("Error loading symbols:", e)
+
+fetch_valid_symbols()
+
 # Symbol alias/fallback list
 SYMBOL_FIX = {
     "tata": "TATAMOTORS",
@@ -98,23 +112,26 @@ async def webhook(req: Request):
     if text.startswith("/stock"):
         query = text.split(" ", 1)[-1].strip().lower()
         fixed_symbol = SYMBOL_FIX.get(query, query)
-        signal = analyze_stock(fixed_symbol)
 
-        if signal:
-            reply = f"📈 {fixed_symbol.upper()} Signal:\n\n"
-            reply += f"Type: {signal['type']}\n"
-            reply += f"CMP: {signal['cmp']}\n"
-            reply += f"Entry: {signal['entry']}\n"
-            reply += f"Targets: {signal['targets']}\n"
-            reply += f"Stop Loss: {signal['sl']}\n"
-            reply += f"\nIndicators:\n"
-            reply += f"RSI: {signal['rsi']}\n"
-            reply += f"MACD: {signal['macd']}\n"
-            reply += f"Supertrend: {signal['supertrend']}\n"
-            reply += f"BB: {signal['bb']}\n"
-            reply += f"Volume: {signal['volume']}\n"
+        if fixed_symbol.upper() not in VALID_SYMBOLS:
+            reply = f"❌ Symbol '{fixed_symbol.upper()}' not found in NSE database."
         else:
-            reply = "❌ Stock data not found or error in signal analysis."
+            signal = analyze_stock(fixed_symbol)
+            if signal:
+                reply = f"📈 {fixed_symbol.upper()} Signal:\n\n"
+                reply += f"Type: {signal['type']}\n"
+                reply += f"CMP: {signal['cmp']}\n"
+                reply += f"Entry: {signal['entry']}\n"
+                reply += f"Targets: {signal['targets']}\n"
+                reply += f"Stop Loss: {signal['sl']}\n"
+                reply += f"\nIndicators:\n"
+                reply += f"RSI: {signal['rsi']}\n"
+                reply += f"MACD: {signal['macd']}\n"
+                reply += f"Supertrend: {signal['supertrend']}\n"
+                reply += f"BB: {signal['bb']}\n"
+                reply += f"Volume: {signal['volume']}\n"
+            else:
+                reply = "❌ Stock data not found or error in signal analysis."
 
     elif text.startswith("/topmovers"):
         reply = get_top_movers()

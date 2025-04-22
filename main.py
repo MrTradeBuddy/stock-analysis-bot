@@ -44,11 +44,17 @@ def analyze_stock(symbol):
 
         ltp = None
         try:
-            ltp = data['chart']['result'][0]['meta'].get('regularMarketPrice')
+            result = data['chart']['result'][0]
+            meta = result['meta']
+            quote = result['indicators']['quote'][0]
+
+            ltp = meta.get('regularMarketPrice')
             if ltp is None:
-                ltp = data['chart']['result'][0]['indicators']['quote'][0]['close'][-1]
+                close_prices = quote.get("close", [])
+                ltp = next((price for price in reversed(close_prices) if price is not None), None)
+
         except Exception as sub_e:
-            print("⚠️ LTP not found in Yahoo API, fallback failed:", sub_e)
+            print("⚠️ LTP fallback failed:", sub_e)
 
         if not ltp:
             print(f"⚠️ Final fallback LTP failed for {symbol}")

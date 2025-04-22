@@ -120,6 +120,7 @@ async def webhook(req: Request):
         if not query:
             reply = "❌ Symbol missing.\n\n🔍 Please type like: /stock tata or /stock icici"
         else:
+            fixed_symbol = None
             if query in SYMBOL_FIX:
                 fixed_symbol = SYMBOL_FIX[query]
             elif query in SYMBOL_MAP:
@@ -127,7 +128,9 @@ async def webhook(req: Request):
             elif query.upper() in VALID_SYMBOLS:
                 fixed_symbol = query.upper()
             else:
-                fixed_symbol = None
+                matches = [v for k, v in SYMBOL_MAP.items() if query in k]
+                if matches:
+                    fixed_symbol = matches[0]
 
             if not fixed_symbol or fixed_symbol not in VALID_SYMBOLS:
                 reply = f"❌ Symbol '{query.upper()}' not found in NSE database.\n\n🔍 Please type like: /stock tata or /stock icici"

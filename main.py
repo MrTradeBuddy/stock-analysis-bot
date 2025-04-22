@@ -26,7 +26,7 @@ async def telegram_webhook(req: Request):
         parts = text.strip().split()
         if len(parts) == 2:
             symbol = parts[1].upper()
-            stock_info = get_nse_price(symbol)
+            stock_info = get_nse_price(symbol.lower())
             if stock_info:
                 send_message(chat_id, f"📊 {symbol}: ₹{stock_info['price']} ({stock_info['change']})")
             else:

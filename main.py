@@ -78,9 +78,7 @@ def analyze_stock(symbol):
     except Exception as e:
         print("❌ பிழை ஏற்பட்டது:", e)
         return None
-    except Exception as e:
-        print("Error:", e)
-        return None
+    
 
 
 # Top Movers Command Logic (Dummy Scan)

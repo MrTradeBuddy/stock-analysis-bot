@@ -115,10 +115,18 @@ async def webhook(req: Request):
 
     if text.startswith("/stock"):
         query = text.split(" ", 1)[-1].strip().lower()
-        fixed_symbol = SYMBOL_FIX.get(query, SYMBOL_MAP.get(query, query.upper()))
 
-        if fixed_symbol not in VALID_SYMBOLS:
-            reply = f"❌ Symbol '{fixed_symbol}' not found in NSE database."
+        if query in SYMBOL_FIX:
+            fixed_symbol = SYMBOL_FIX[query]
+        elif query in SYMBOL_MAP:
+            fixed_symbol = SYMBOL_MAP[query]
+        elif query.upper() in VALID_SYMBOLS:
+            fixed_symbol = query.upper()
+        else:
+            fixed_symbol = None
+
+        if not fixed_symbol or fixed_symbol not in VALID_SYMBOLS:
+            reply = f"❌ Symbol '{text.split(' ',1)[-1]}' not found in NSE database."
         else:
             signal = analyze_stock(fixed_symbol)
             if signal:

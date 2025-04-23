@@ -1,10 +1,47 @@
 from fastapi import FastAPI, Request
 import requests
 import time
+import threading
 import numpy as np
 from upstox_api.api import Upstox, LiveFeedType
 
 app = FastAPI()
+
+@app.post("/")
+async def telegram_webhook(req: Request):
+    data = await req.json()
+    message = data.get("message", {})
+    text = message.get("text", "")
+    chat_id = message.get("chat", {}).get("id")
+
+    if text.strip() == "/start":
+        send_message(chat_id, "👋 Hello Mr. Buddy! Welcome to the stock bot world 💼📈")
+    elif text.startswith("/stock"):
+        parts = text.strip().split()
+        if len(parts) == 2:
+            symbol = parts[1].upper().replace(" ", "")
+            stock_info = get_stock_price(symbol)
+            if stock_info:
+                send_message(chat_id, f"📊 {symbol}: ₹{stock_info['price']} ({stock_info['change']})")
+            else:
+                send_message(chat_id, f"❌ Unable to fetch data for {symbol}. Try NSE symbols like RELIANCE, ICICIBANK")
+        else:
+            send_message(chat_id, "⚠️ Format: /stock SYMBOL
+Example: /stock tatamotors")
+    elif text.startswith("/signal"):
+        parts = text.strip().split()
+        if len(parts) >= 2:
+            symbol = "".join(parts[1:]).upper()
+            try:
+                signal = get_signal_status(symbol)
+                send_message(chat_id, signal, markdown=True)
+            except Exception as e:
+                send_message(chat_id, f"❌ Unable to fetch signal for {symbol}", markdown=True)
+        else:
+            send_message(chat_id, "⚠️ Format: /signal SYMBOL
+Example: /signal tatamotors", markdown=True)
+    else:
+        send_message(chat_id, "🤖 Unknown command. Try /start or /stock tata")
 
 # Global tracker to avoid duplicate replies
 last_called = {}
@@ -21,138 +58,50 @@ ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.e
 u = Upstox(API_KEY, API_SECRET)
 u.set_access_token(ACCESS_TOKEN)
 
-@app.get("/")
-def read_root():
-    return {"status": "Server Running 🚀"}
+def auto_signal_loop():
+    signal_monitor()
+    threading.Timer(300.0, auto_signal_loop).start()  # 5 minutes loop
 
-@app.post("/")
-async def telegram_webhook(req: Request):
-    global last_called
-    data = await req.json()
-    print("🔔 Telegram Message Received:", data)
-
-    message = data.get("message", {}) or data.get("edited_message", {})
-    text = message.get("text", "").strip()
-    chat = message.get("chat", {})
-    chat_id = chat.get("id")
-    chat_type = chat.get("type", "")
-
-    if chat_type not in ["private", "supergroup", "group"]:
-        print("⛔ Unsupported chat type:", chat_type)
-        return {"ok": True}
-
-    if not chat_id or not text:
-        return {"ok": False, "error": "Invalid message format"}
-
-    now = time.time()
-    if chat_id in last_called and now - last_called[chat_id] < 2:
-        print("⚠️ Skipping duplicate request for chat:", chat_id)
-        return {"ok": True}
-    last_called[chat_id] = now
-
-    time.sleep(0.5)
-
-    if text == "/start":
-        send_message(chat_id, "👋 Hello Mr. Buddy! Welcome to the stock bot world 💼📈\nType `/stock tatamotors` to try.")
-    elif text.startswith("/stock"):
-        parts = text.split()
-        if len(parts) >= 2:
-            symbol = "".join(parts[1:]).upper()
-            if symbol in ["NIFTY", "BANKNIFTY", "SENSEX"]:
-                index_info = get_index_price(symbol)
-                if index_info:
-                    send_message(chat_id, f"📈 *{symbol}*\nIndex Level: ₹{index_info['price']} ({index_info['change']})", markdown=True)
-                else:
-                    send_message(chat_id, f"❌ Unable to fetch data for index `{symbol}`.", markdown=True)
-            else:
-                stock_info = get_upstox_price(symbol)
-                if stock_info:
-                    send_message(chat_id, f"📊 *{symbol}*\nCMP: ₹{stock_info['price']} ({stock_info['change']})", markdown=True)
-                else:
-                    send_message(chat_id, f"❌ Unable to fetch data for `{symbol}`.\nTry symbols like `RELIANCE`, `ICICIBANK`.", markdown=True)
-        else:
-            send_message(chat_id, "⚠️ Format: `/stock SYMBOL`\nExample: `/stock tatamotors`", markdown=True)
-    elif text.startswith("/rsi"):
-        parts = text.split()
+def signal_monitor():
+    watchlist = ["TATAMOTORS", "RELIANCE", "ICICIBANK", "HDFCBANK"]
+    for symbol in watchlist:
         try:
-            rsi_threshold = int(parts[1]) if len(parts) > 1 else 30
-            matching_stocks = get_stocks_below_rsi(rsi_threshold)
-            if matching_stocks:
-                response = f"📉 Stocks with RSI < {rsi_threshold}:
-" + "\n".join(matching_stocks)
-            else:
-                response = f"✅ No stocks found below RSI {rsi_threshold}"
-            send_message(chat_id, response)
+            message = get_signal_status(symbol)
+            if any(signal in message for signal in ["🟢 BUY", "🔴 SELL"]):
+                try:
+                    lines = message.split('\n')
+                    cmp_line = next((line for line in lines if "CMP" in line), None)
+                    if cmp_line:
+                        cmp_value = float(cmp_line.split("₹")[1].split(" ")[0])
+                        sl = cmp_value * 0.97
+                        tp1 = cmp_value * 1.03
+                        tp2 = cmp_value * 1.06
+                        message += f"\n🛑 SL: ₹{sl:.2f} | 🎯 TP1: ₹{tp1:.2f}, TP2: ₹{tp2:.2f}"
+                except Exception as e:
+                    print(f"Error parsing CMP and calculating SL/TP: {e}")
+                send_message(5604148401, f"🔔 Auto Signal Alert for {symbol}\n{message}", markdown=True)
         except Exception as e:
-            send_message(chat_id, "❌ Invalid format. Use `/rsi 30` or `/rsi 20`", markdown=True)
-    else:
-        send_message(chat_id, "❌ Unknown command. Please type `/start` or `/stock SYMBOL` or `/rsi 30`", markdown=True)
+            print(f"Error monitoring signal for {symbol}:", e)
 
-    return {"ok": True}
-
-def send_message(chat_id, text, markdown=False):
-    if not chat_id or not text:
-        return
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-    }
-    if markdown:
-        payload["parse_mode"] = "Markdown"
-    response = requests.post(TELEGRAM_API_URL, json=payload)
-    print("📤 Telegram Response:", response.text)
-
-def get_upstox_price(symbol):
+def get_signal_status(symbol):
     try:
         instrument = f"NSE_EQ|{symbol.upper()}"
-        data = u.get_live_feed(instrument, LiveFeedType.MARKET_DATA)
-        ltp = data.get('ltp', 0.00)
-        change = data.get('ltpc', 0.00)
-        arrow = '▲' if change > 0 else '▼' if change < 0 else ''
-        return {"price": f"{ltp:.2f}", "change": f"{arrow} {change:.2f}%"}
+        data = u.get_ohlc(instrument, "1day")
+        closes = [candle['close'] for candle in data[-15:]]
+        rsi = calculate_rsi(closes)
+
+        price_data = u.get_live_feed(instrument, LiveFeedType.MARKET_DATA)
+        ltp = price_data.get('ltp', 0.0)
+        change = price_data.get('ltpc', 0.0)
+
+        supertrend = "BUY" if change > 0 else "SELL"
+        advice = "🟢 BUY" if rsi < 30 and supertrend == "BUY" else ("🔴 SELL" if rsi > 70 and supertrend == "SELL" else "⚠️ WAIT")
+
+        sl = ltp * 0.97
+        tp1 = ltp * 1.03
+        tp2 = ltp * 1.06
+
+        return f"📊 *{symbol}*\nCMP: ₹{ltp:.2f} ({change:+.2f}%)\nRSI: {rsi:.2f}\nSupertrend: {supertrend}\nAdvice: {advice}\n🛑 SL: ₹{sl:.2f} | 🎯 TP1: ₹{tp1:.2f}, TP2: ₹{tp2:.2f}"
     except Exception as e:
-        print("❌ Upstox fetch error:", e)
-        return None
-
-def get_index_price(index_name):
-    try:
-        mapping = {
-            "NIFTY": "NSE_INDEX|Nifty 50",
-            "BANKNIFTY": "NSE_INDEX|Nifty Bank",
-            "SENSEX": "BSE_INDEX|Sensex"
-        }
-        instrument = mapping.get(index_name.upper())
-        if not instrument:
-            return None
-        data = u.get_live_feed(instrument, LiveFeedType.MARKET_DATA)
-        ltp = data.get('ltp', 0.00)
-        change = data.get('ltpc', 0.00)
-        arrow = '▲' if change > 0 else '▼' if change < 0 else ''
-        return {"price": f"{ltp:.2f}", "change": f"{arrow} {change:.2f}%"}
-    except Exception as e:
-        print("❌ Upstox Index fetch error:", e)
-        return None
-
-def get_stocks_below_rsi(threshold):
-    # Dummy list for testing. Replace with dynamic NSE F&O list if needed.
-    symbols = ["TATAMOTORS", "RELIANCE", "ICICIBANK", "HDFCBANK"]
-    result = []
-    for symbol in symbols:
-        try:
-            ohlc = u.get_ohlc("NSE_EQ|" + symbol, "1day")
-            closes = [candle['close'] for candle in ohlc[-15:]]
-            rsi = calculate_rsi(closes)
-            if rsi < threshold:
-                result.append(f"{symbol} - RSI: {rsi:.2f}")
-        except Exception as e:
-            print(f"⚠️ Error fetching RSI for {symbol}:", e)
-    return result
-
-def calculate_rsi(closing_prices, period=14):
-    deltas = np.diff(closing_prices)
-    seed = deltas[:period]
-    up = seed[seed > 0].sum() / period
-    down = -seed[seed < 0].sum() / period
-    rs = up / down if down != 0 else 0
-    rsi = 100. - (100. / (1. + rs))
-    return rsi
+        print(f"❌ Error in signal generation for {symbol}:", e)
+        return "⚠️ Unable to compute signal right now."

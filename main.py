@@ -2,21 +2,15 @@ from fastapi import FastAPI, Request
 import requests
 import yfinance as yf
 
-app = FastAPI()
-
-@app.get("/")   # 🛑 இந்த line இருக்கணும் 100%
-def read_root():
-    return {"status": "Server Running 🚀"}
-
-app = FastAPI()
-
-# Your Telegram Bot token
-BOT_TOKEN = "7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8"
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+app = FastAPI()  # ✅ This line should appear only once
 
 @app.get("/")
 def read_root():
     return {"status": "Server Running 🚀"}
+
+# Your Telegram Bot token
+BOT_TOKEN = "7551804667:AAGcSYXvvHwlv9fWx1rQQM3lQT-mr7bvye8"
+TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
 @app.post("/")
 async def telegram_webhook(req: Request):
@@ -71,4 +65,3 @@ def get_stock_price(symbol):
     except Exception as e:
         print("❌ Error fetching stock data:", e)
     return None
-

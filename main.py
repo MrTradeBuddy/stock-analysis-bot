@@ -80,7 +80,10 @@ async def telegram_webhook(req: Request):
         except Exception as e:
             send_message(chat_id, "❌ Invalid format. Use `/rsi 30` or `/rsi 20`", markdown=True)
     else:
-        send_message(chat_id, "🤖 Unknown command. Try `/start`, `/stock tatamotors`, or `/rsi 30`", markdown=True)
+        send_message(chat_id, "🤖 Unknown command. Try:
+• `/start`
+• `/stock tatamotors`
+• `/rsi 30`", markdown=True)
 
     return {"ok": True}
 

@@ -28,6 +28,7 @@ async def telegram_webhook(req: Request):
         else:
             send_message(chat_id, "⚠️ Format: /stock SYMBOL
 Example: /stock tatamotors")
+Example: /stock tatamotors")
     elif text.startswith("/signal"):
         symbol = text.replace("/signal", "").strip().upper().replace(" ", "")
         if symbol:
@@ -35,9 +36,10 @@ Example: /stock tatamotors")
                 signal = get_signal_status(symbol)
                 send_message(chat_id, signal, markdown=True)
             except Exception as e:
-                send_message(chat_id, f"❌ Unable to fetch signal for {symbol}", markdown=True), markdown=True)
+                send_message(chat_id, f"❌ Unable to fetch signal for {symbol}", markdown=True)
         else:
-            send_message(chat_id, "⚠️ Format: /signal SYMBOL
+        send_message(chat_id, "⚠️ Format: /signal SYMBOL
+Example: /signal tatamotors", markdown=True)
 Example: /signal tatamotors", markdown=True)
     else:
             send_message(chat_id, "⚠️ Format: /signal SYMBOL

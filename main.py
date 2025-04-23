@@ -14,37 +14,36 @@ async def telegram_webhook(req: Request):
     text = message.get("text", "")
     chat_id = message.get("chat", {}).get("id")
 
-    if text.strip() == "/":
-        send_message(chat_id, "👋 Hello Mr. Buddy! Type /stock SYMBOL to get stock updates. For example: /stock tata")
-    elif text == "/start":
-        send_message(chat_id, "👋 Hello Mr. Buddy! Welcome to the stock bot world 💼📈")
+    if text == "/start":
+        send_message(chat_id, "👋 Hello Mr. Buddy! Welcome to the stock bot world 💼📈\n\nType `/stock tatamotors` or `/stock reliance` to get live data.")
     elif text.startswith("/stock"):
         parts = text.strip().split()
-        if len(parts) == 2:
-            symbol = parts[1].upper()
+        if len(parts) >= 2:
+            symbol = "".join(parts[1:]).upper()
             stock_info = get_stock_price(symbol)
             if stock_info:
-                send_message(chat_id, f"📊 {symbol}: ₹{stock_info['price']} ({stock_info['change']})")
+                send_message(chat_id, f"📊 *{symbol}*\nCMP: ₹{stock_info['price']} ({stock_info['change']})", markdown=True)
             else:
-                send_message(chat_id, f"❌ Unable to fetch live data for {symbol}. Please try again with a valid symbol like TATAMOTORS, ICICIBANK")
+                send_message(chat_id, f"❌ Unable to fetch data for `{symbol}`.\nTry NSE symbols like: `RELIANCE`, `ICICIBANK`, `TATAMOTORS`.", markdown=True)
         else:
-            send_message(chat_id, "📢 Please use the correct format: /stock SYMBOL")
+            send_message(chat_id, "⚠️ Format: `/stock SYMBOL`\nEg: `/stock tatamotors`", markdown=True)
     else:
-        send_message(chat_id, "❌ Unknown command. Try /start or /stock tata")
+        send_message(chat_id, "❌ Unknown command. Try `/start` or `/stock tata`", markdown=True)
 
     return {"ok": True}
 
-def send_message(chat_id, text):
+def send_message(chat_id, text, markdown=False):
     payload = {
         "chat_id": chat_id,
-        "text": text
+        "text": text,
+        "parse_mode": "Markdown" if markdown else None
     }
     requests.post(TELEGRAM_API_URL, json=payload)
 
 def get_stock_price(symbol):
     try:
-        ticker = yf.Ticker(symbol + ".NS")  # NSE symbols in Yahoo end with .NS
-        data = ticker.history(period="1d")
+        ticker = yf.Ticker(symbol + ".NS")
+        data = ticker.history(period="2d")
         if not data.empty:
             price = data['Close'].iloc[-1]
             prev_close = data['Close'].iloc[-2] if len(data) > 1 else price

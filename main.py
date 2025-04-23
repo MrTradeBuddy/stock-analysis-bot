@@ -31,9 +31,15 @@ async def telegram_webhook(req: Request):
     data = await req.json()
     print("🔔 Telegram Message Received:", data)
 
-    message = data.get("message", {})
+    message = data.get("message", {}) or data.get("edited_message", {})
     text = message.get("text", "").strip()
-    chat_id = message.get("chat", {}).get("id")
+    chat = message.get("chat", {})
+    chat_id = chat.get("id")
+    chat_type = chat.get("type", "")
+
+    if chat_type not in ["private", "supergroup", "group"]:
+        print("⛔ Unsupported chat type:", chat_type)
+        return {"ok": True}
 
     if not chat_id or not text:
         return {"ok": False, "error": "Invalid message format"}
@@ -85,6 +91,8 @@ async def telegram_webhook(req: Request):
     return {"ok": True}
 
 def send_message(chat_id, text, markdown=False):
+    if not chat_id or not text:
+        return
     payload = {
         "chat_id": chat_id,
         "text": text,

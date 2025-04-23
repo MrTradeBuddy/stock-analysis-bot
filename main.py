@@ -4,8 +4,29 @@ import time
 import threading
 import numpy as np
 from upstox_api.api import Upstox, LiveFeedType
+from fastapi.responses import HTMLResponse
 
 app = FastAPI()
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return """
+    <html>
+        <head>
+            <title>Mr. Trade Buddy - Signal Bot</title>
+        </head>
+        <body style='font-family: sans-serif; background-color: #f4f4f4;'>
+            <h2>🚀 Mr. Trade Buddy Web Interface</h2>
+            <p>✅ This bot is active and running!</p>
+            <ul>
+                <li><strong>/start</strong> - Welcome message</li>
+                <li><strong>/stock SYMBOL</strong> - Live CMP & Change %</li>
+                <li><strong>/signal SYMBOL</strong> - Only CMP shown</li>
+            </ul>
+            <p>Ping the bot on Telegram: <a href='https://t.me/MrOpt_bot' target='_blank'>@MrOpt_bot</a></p>
+        </body>
+    </html>
+    """
 
 @app.post("/")
 async def telegram_webhook(req: Request):
@@ -86,11 +107,7 @@ def get_signal_status(symbol):
         instrument = f"NSE_EQ|{symbol.upper()}"
         price_data = u.get_live_feed(instrument, LiveFeedType.MARKET_DATA)
         ltp = price_data.get('ltp', 0.0)
-        return f"📊 {symbol}
-CMP: ₹{ltp:.2f}"
+        return f"📊 {symbol}\nCMP: ₹{ltp:.2f}"
     except Exception as e:
         print(f"❌ Error in signal generation for {symbol}:", e)
         return "⚠️ Unable to fetch CMP for this stock."
-    except Exception as e:
-        print(f"❌ Error in signal generation for {symbol}:", e)
-        return "⚠️ Unable to compute signal right now."

@@ -1,10 +1,12 @@
-@app.get("/")
-def read_root():
-    return {"status": "Server Running 🚀"}
-
 from fastapi import FastAPI, Request
 import requests
 import yfinance as yf
+
+app = FastAPI()
+
+@app.get("/")   # 🛑 இந்த line இருக்கணும் 100%
+def read_root():
+    return {"status": "Server Running 🚀"}
 
 app = FastAPI()
 

@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 import requests
 import time
+import numpy as np
 from upstox_api.api import Upstox, LiveFeedType
 
 app = FastAPI()
@@ -15,7 +16,7 @@ TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 # Upstox API Setup
 API_KEY = "29293c26-f228-4b54-a52c-2aabd500d385"
 API_SECRET = "3o5mdjiqcd"
-ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI1WEI3RkQiLCJqdGkiOiI2ODA4YWU3YTMwYmMxMjBlYTZlNTczODMiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQ1Mzk5NDE4LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDU0NDU2MDB9.x49jmFTZC9OHSmmbN_cqJYPDgoMbyRBwFj-A49b8ar8"  # ✅ Access token added
+ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI1WEI3RkQiLCJqdGkiOiI2ODA4YWU3YTMwYmMxMjBlYTZlNTczODMiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaWF0IjoxNzQ1Mzk5NDE4LCJpc3MiOiJ1ZGFwaS1nYXRld2F5LXNlcnZpY2UiLCJleHAiOjE3NDU0NDU2MDB9.x49jmFTZC9OHSmmbN_cqJYPDgoMbyRBwFj-A49b8ar8"
 
 u = Upstox(API_KEY, API_SECRET)
 u.set_access_token(ACCESS_TOKEN)
@@ -54,21 +55,32 @@ async def telegram_webhook(req: Request):
             if symbol in ["NIFTY", "BANKNIFTY", "SENSEX"]:
                 index_info = get_index_price(symbol)
                 if index_info:
-                    send_message(chat_id, f"📈 *{symbol}*
-Index Level: ₹{index_info['price']} ({index_info['change']})", markdown=True)
+                    send_message(chat_id, f"📈 *{symbol}*\nIndex Level: ₹{index_info['price']} ({index_info['change']})", markdown=True)
                 else:
                     send_message(chat_id, f"❌ Unable to fetch data for index `{symbol}`.", markdown=True)
             else:
                 stock_info = get_upstox_price(symbol)
                 if stock_info:
-                    send_message(chat_id, f"📊 *{symbol}*
-CMP: ₹{stock_info['price']} ({stock_info['change']})", markdown=True)
+                    send_message(chat_id, f"📊 *{symbol}*\nCMP: ₹{stock_info['price']} ({stock_info['change']})", markdown=True)
                 else:
                     send_message(chat_id, f"❌ Unable to fetch data for `{symbol}`.\nTry symbols like `RELIANCE`, `ICICIBANK`.", markdown=True)
         else:
             send_message(chat_id, "⚠️ Format: `/stock SYMBOL`\nExample: `/stock tatamotors`", markdown=True)
+    elif text.startswith("/rsi"):
+        parts = text.split()
+        try:
+            rsi_threshold = int(parts[1]) if len(parts) > 1 else 30
+            matching_stocks = get_stocks_below_rsi(rsi_threshold)
+            if matching_stocks:
+                response = f"📉 Stocks with RSI < {rsi_threshold}:
+" + "\n".join(matching_stocks)
+            else:
+                response = f"✅ No stocks found below RSI {rsi_threshold}"
+            send_message(chat_id, response)
+        except Exception as e:
+            send_message(chat_id, "❌ Invalid format. Use `/rsi 30` or `/rsi 20`", markdown=True)
     else:
-        send_message(chat_id, "🤖 Unknown command. Try `/start` or `/stock tata`", markdown=True)
+        send_message(chat_id, "🤖 Unknown command. Try `/start`, `/stock tatamotors`, or `/rsi 30`", markdown=True)
 
     return {"ok": True}
 
@@ -112,3 +124,27 @@ def get_index_price(index_name):
     except Exception as e:
         print("❌ Upstox Index fetch error:", e)
         return None
+
+def get_stocks_below_rsi(threshold):
+    # Dummy list for testing. Replace with dynamic NSE F&O list if needed.
+    symbols = ["TATAMOTORS", "RELIANCE", "ICICIBANK", "HDFCBANK"]
+    result = []
+    for symbol in symbols:
+        try:
+            ohlc = u.get_ohlc("NSE_EQ|" + symbol, "1day")
+            closes = [candle['close'] for candle in ohlc[-15:]]
+            rsi = calculate_rsi(closes)
+            if rsi < threshold:
+                result.append(f"{symbol} - RSI: {rsi:.2f}")
+        except Exception as e:
+            print(f"⚠️ Error fetching RSI for {symbol}:", e)
+    return result
+
+def calculate_rsi(closing_prices, period=14):
+    deltas = np.diff(closing_prices)
+    seed = deltas[:period]
+    up = seed[seed > 0].sum() / period
+    down = -seed[seed < 0].sum() / period
+    rs = up / down if down != 0 else 0
+    rsi = 100. - (100. / (1. + rs))
+    return rsi

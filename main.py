@@ -26,9 +26,7 @@ async def telegram_webhook(req: Request):
             else:
                 send_message(chat_id, f"❌ Unable to fetch data for {symbol}. Try NSE symbols like RELIANCE, ICICIBANK")
         else:
-            send_message(chat_id, "⚠️ Format: /stock SYMBOL
-Example: /stock tatamotors")
-Example: /stock tatamotors")
+            send_message(chat_id, "⚠️ Format: /stock SYMBOL\nExample: /stock tatamotors")
     elif text.startswith("/signal"):
         parts = text.strip().split()
         if len(parts) >= 2:
@@ -39,15 +37,7 @@ Example: /stock tatamotors")
             except Exception as e:
                 send_message(chat_id, f"❌ Unable to fetch signal for {symbol}", markdown=True)
         else:
-            send_message(chat_id, "⚠️ Format: /signal SYMBOL
-Example: /signal tatamotors", markdown=True)
-        else:
-        send_message(chat_id, "⚠️ Format: /signal SYMBOL
-Example: /signal tatamotors", markdown=True)
-Example: /signal tatamotors", markdown=True)
-    else:
-            send_message(chat_id, "⚠️ Format: /signal SYMBOL
-Example: /signal tatamotors", markdown=True)
+            send_message(chat_id, "⚠️ Format: /signal SYMBOL\nExample: /signal tatamotors", markdown=True)
     else:
         send_message(chat_id, "🤖 Unknown command. Try /start or /stock tata")
 

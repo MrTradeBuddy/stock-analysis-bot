@@ -51,11 +51,20 @@ async def telegram_webhook(req: Request):
         parts = text.split()
         if len(parts) >= 2:
             symbol = "".join(parts[1:]).upper()
-            stock_info = get_upstox_price(symbol)
-            if stock_info:
-                send_message(chat_id, f"📊 *{symbol}*\nCMP: ₹{stock_info['price']} ({stock_info['change']})", markdown=True)
+            if symbol in ["NIFTY", "BANKNIFTY", "SENSEX"]:
+                index_info = get_index_price(symbol)
+                if index_info:
+                    send_message(chat_id, f"📈 *{symbol}*
+Index Level: ₹{index_info['price']} ({index_info['change']})", markdown=True)
+                else:
+                    send_message(chat_id, f"❌ Unable to fetch data for index `{symbol}`.", markdown=True)
             else:
-                send_message(chat_id, f"❌ Unable to fetch data for `{symbol}`.\nTry symbols like `RELIANCE`, `ICICIBANK`.", markdown=True)
+                stock_info = get_upstox_price(symbol)
+                if stock_info:
+                    send_message(chat_id, f"📊 *{symbol}*
+CMP: ₹{stock_info['price']} ({stock_info['change']})", markdown=True)
+                else:
+                    send_message(chat_id, f"❌ Unable to fetch data for `{symbol}`.\nTry symbols like `RELIANCE`, `ICICIBANK`.", markdown=True)
         else:
             send_message(chat_id, "⚠️ Format: `/stock SYMBOL`\nExample: `/stock tatamotors`", markdown=True)
     else:
@@ -83,4 +92,23 @@ def get_upstox_price(symbol):
         return {"price": f"{ltp:.2f}", "change": f"{arrow} {change:.2f}%"}
     except Exception as e:
         print("❌ Upstox fetch error:", e)
+        return None
+
+def get_index_price(index_name):
+    try:
+        mapping = {
+            "NIFTY": "NSE_INDEX|Nifty 50",
+            "BANKNIFTY": "NSE_INDEX|Nifty Bank",
+            "SENSEX": "BSE_INDEX|Sensex"
+        }
+        instrument = mapping.get(index_name.upper())
+        if not instrument:
+            return None
+        data = u.get_live_feed(instrument, LiveFeedType.MARKET_DATA)
+        ltp = data.get('ltp', 0.00)
+        change = data.get('ltpc', 0.00)
+        arrow = '▲' if change > 0 else '▼' if change < 0 else ''
+        return {"price": f"{ltp:.2f}", "change": f"{arrow} {change:.2f}%"}
+    except Exception as e:
+        print("❌ Upstox Index fetch error:", e)
         return None

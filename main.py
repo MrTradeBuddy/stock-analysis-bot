@@ -19,7 +19,7 @@ async def telegram_webhook(req: Request):
     elif text.startswith("/stock"):
         parts = text.strip().split()
         if len(parts) >= 2:
-            symbol = "".join(parts[1:]).upper().replace(" ", "")
+            symbol = "".join(parts[1:]).replace(" ", "").upper().replace(" ", "")
             stock_info = get_stock_price(symbol)
             if stock_info:
                 send_message(chat_id, f"📊 {symbol}: ₹{stock_info['price']} ({stock_info['change']})")
@@ -84,22 +84,13 @@ def signal_monitor():
 def get_signal_status(symbol):
     try:
         instrument = f"NSE_EQ|{symbol.upper()}"
-        data = u.get_ohlc(instrument, "1day")
-        closes = [candle['close'] for candle in data[-15:]]
-        rsi = calculate_rsi(closes)
-
         price_data = u.get_live_feed(instrument, LiveFeedType.MARKET_DATA)
         ltp = price_data.get('ltp', 0.0)
-        change = price_data.get('ltpc', 0.0)
-
-        supertrend = "BUY" if change > 0 else "SELL"
-        advice = "🟢 BUY" if rsi < 30 and supertrend == "BUY" else ("🔴 SELL" if rsi > 70 and supertrend == "SELL" else "⚠️ WAIT")
-
-        sl = ltp * 0.97
-        tp1 = ltp * 1.03
-        tp2 = ltp * 1.06
-
-        return f"📊 *{symbol}*\nCMP: ₹{ltp:.2f} ({change:+.2f}%)\nRSI: {rsi:.2f}\nSupertrend: {supertrend}\nAdvice: {advice}\n🛑 SL: ₹{sl:.2f} | 🎯 TP1: ₹{tp1:.2f}, TP2: ₹{tp2:.2f}"
+        return f"📊 {symbol}
+CMP: ₹{ltp:.2f}"
+    except Exception as e:
+        print(f"❌ Error in signal generation for {symbol}:", e)
+        return "⚠️ Unable to fetch CMP for this stock."
     except Exception as e:
         print(f"❌ Error in signal generation for {symbol}:", e)
         return "⚠️ Unable to compute signal right now."

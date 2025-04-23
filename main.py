@@ -19,7 +19,7 @@ async def telegram_webhook(req: Request):
     elif text.startswith("/stock"):
         parts = text.strip().split()
         if len(parts) >= 2:
-            symbol = "".join(parts[1:]).upper()
+            symbol = "".join(parts[1:]).upper().replace(" ", "")
             stock_info = get_stock_price(symbol)
             if stock_info:
                 send_message(chat_id, f"📊 {symbol}: ₹{stock_info['price']} ({stock_info['change']})")

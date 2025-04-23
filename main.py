@@ -1,3 +1,7 @@
+@app.get("/")
+def read_root():
+    return {"status": "Server Running 🚀"}
+
 from fastapi import FastAPI, Request
 import requests
 import yfinance as yf
